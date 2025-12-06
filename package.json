@@ -1,0 +1,15 @@
+{
+  "name": "voice-realtime",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  },
+  "engines": {
+    "node": ">=18.15"
+  }
+}
