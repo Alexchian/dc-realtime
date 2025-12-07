@@ -1,11 +1,12 @@
 // server.js — DC Realtime HTTP Signaling Proxy
-import http from "http";
-import dotenv from "dotenv";
+const http = require("http");
+const dotenv = require("dotenv");
+const fetch = require("node-fetch"); // нужно добавить в package.json
 
 dotenv.config();
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const PORT = process.env.PORT || 3001; // ✅ Render подставит свой порт
+const PORT = process.env.PORT || 3001;
 
 if (!OPENAI_API_KEY) {
   console.error("❌ Missing OPENAI_API_KEY in .env");
@@ -13,7 +14,6 @@ if (!OPENAI_API_KEY) {
 }
 
 const server = http.createServer(async (req, res) => {
-  // CORS, чтобы можно было открыть client.html как file:// или с другого порта
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -34,7 +34,6 @@ const server = http.createServer(async (req, res) => {
       try {
         console.log("➡️  Received SDP offer from browser, length:", body.length);
 
-        // Отправляем offer напрямую в OpenAI Realtime API
         const oaiRes = await fetch(
           "https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
           {
@@ -73,7 +72,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(
-    `🚀 DC Realtime Signaling Server listening on http://localhost:${PORT}`
-  );
+  console.log(`🚀 DC Realtime Signaling Server listening on http://localhost:${PORT}`);
 });
