@@ -1,7 +1,7 @@
 // server.js — DC Realtime HTTP Signaling Proxy
 const http = require("http");
 const dotenv = require("dotenv");
-const fetch = require("node-fetch"); // нужно добавить в package.json
+const fetch = require("node-fetch");
 
 dotenv.config();
 
