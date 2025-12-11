@@ -1,19 +1,16 @@
-//@ server.js — DC Realtime WebRTC Signaling Proxy
+// server.js — DC Realtime WebRTC Signaling Proxy (SDK 4.47.0)
 const http = require("http");
 const dotenv = require("dotenv");
 const OpenAI = require("openai");
 
 dotenv.config();
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// В 4.47.0 клиент создаётся так:
+const client = OpenAI(process.env.OPENAI_API_KEY);
 
 const PORT = process.env.PORT || 8080;
 
 http.createServer(async (req, res) => {
-
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -35,14 +32,14 @@ http.createServer(async (req, res) => {
     try {
       const offerSDP = body;
 
-      // STABLE REALTIME SESSION API (SDK 4.47.0)
+      // Создаём realtime‑сессию
       const session = await client.realtime.sessions.create({
-        model: "gpt-4o-realtime-preview", // или …preview-latest
+        model: "gpt-4o-realtime-preview",
         voice: "cedar",
         format: "webrtc",
       });
 
-      // EXCHANGE SDP
+      // Обмениваемся SDP
       const answerSDP = await session.sendSDP(offerSDP);
 
       res.writeHead(200, { "Content-Type": "application/sdp" });
@@ -54,7 +51,6 @@ http.createServer(async (req, res) => {
       res.end("ERROR");
     }
   });
-
 }).listen(PORT, () =>
   console.log(`🚀 DC Realtime Signaling Server listening on port ${PORT}`)
 );
