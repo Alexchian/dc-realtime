@@ -1,12 +1,14 @@
-// server.js — DC Realtime WebRTC Signaling Proxy (SDK 4.47.0)
+//!!! server.js — DC Realtime WebRTC Signaling Proxy (SDK 4.47.0)
 const http = require("http");
 const dotenv = require("dotenv");
 const OpenAI = require("openai");
 
 dotenv.config();
 
-// В 4.47.0 клиент создаётся так:
-const client = OpenAI(process.env.OPENAI_API_KEY);
+// В 4.47.0 клиент создаётся через new
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const PORT = process.env.PORT || 8080;
 
