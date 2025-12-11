@@ -1,4 +1,4 @@
-// server.js — OpenAI Realtime WebRTC Signaling Proxy (Stable API)
+//! server.js — DC Realtime WebRTC Signaling Proxy
 
 const http = require("http");
 const dotenv = require("dotenv");
@@ -30,24 +30,23 @@ http.createServer(async (req, res) => {
   }
 
   let body = "";
-  req.on("data", chunk => body += chunk);
+  req.on("data", (chunk) => (body += chunk));
 
   req.on("end", async () => {
     try {
-      const offer = body;
+      const offerSDP = body;
 
-      // Create realtime WebRTC session
+      // UPDATED MODEL NAME (critical)
       const session = await client.realtime.sessions.create({
-        model: "gpt-4o-realtime-preview",
+        model: "gpt-4o-realtime-preview-latest",  // <<<<<< RIGHT MODEL
         voice: "cedar",
         format: "webrtc",
       });
 
-      // Exchange SDP
-      const answer = await session.sendSDP(offer);
+      const answerSDP = await session.sendSDP(offerSDP);
 
       res.writeHead(200, { "Content-Type": "application/sdp" });
-      res.end(answer);
+      res.end(answerSDP);
 
     } catch (err) {
       console.error("❌ REALTIME ERROR:", err);
@@ -57,5 +56,5 @@ http.createServer(async (req, res) => {
   });
 
 }).listen(PORT, () =>
-  console.log("🚀 Realtime Server running on port", PORT)
+  console.log(`🚀 DC Realtime Signaling Server listening on port ${PORT}`)
 );
