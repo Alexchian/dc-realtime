@@ -1,5 +1,4 @@
-//! server.js — DC Realtime WebRTC Signaling Proxy
-
+//@ server.js — DC Realtime WebRTC Signaling Proxy
 const http = require("http");
 const dotenv = require("dotenv");
 const OpenAI = require("openai");
@@ -30,19 +29,20 @@ http.createServer(async (req, res) => {
   }
 
   let body = "";
-  req.on("data", (chunk) => (body += chunk));
+  req.on("data", chunk => body += chunk);
 
   req.on("end", async () => {
     try {
       const offerSDP = body;
 
-      // UPDATED MODEL NAME (critical)
+      // STABLE REALTIME SESSION API (SDK 4.47.0)
       const session = await client.realtime.sessions.create({
-        model: "gpt-4o-realtime-preview-latest",  // <<<<<< RIGHT MODEL
+        model: "gpt-4o-realtime-preview", // или …preview-latest
         voice: "cedar",
         format: "webrtc",
       });
 
+      // EXCHANGE SDP
       const answerSDP = await session.sendSDP(offerSDP);
 
       res.writeHead(200, { "Content-Type": "application/sdp" });
