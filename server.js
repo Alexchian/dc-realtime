@@ -1,11 +1,11 @@
-//!!! server.js — DC Realtime WebRTC Signaling Proxy (SDK 4.47.0)
+// server.js — DC Realtime WebRTC Signaling Proxy (SDK 4.47.0)
 const http = require("http");
 const dotenv = require("dotenv");
 const OpenAI = require("openai");
 
 dotenv.config();
 
-// В 4.47.0 клиент создаётся через new
+// ✅ SDK 4.47.0 требует new
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -34,14 +34,12 @@ http.createServer(async (req, res) => {
     try {
       const offerSDP = body;
 
-      // Создаём realtime‑сессию
       const session = await client.realtime.sessions.create({
         model: "gpt-4o-realtime-preview",
         voice: "cedar",
         format: "webrtc",
       });
 
-      // Обмениваемся SDP
       const answerSDP = await session.sendSDP(offerSDP);
 
       res.writeHead(200, { "Content-Type": "application/sdp" });
