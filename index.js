@@ -19,7 +19,7 @@ function logLine(obj) {
 }
 
 http.createServer(async (req, res) => {
-  // CORS headers
+  // ✅ CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*"); // или конкретный домен
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -52,9 +52,20 @@ http.createServer(async (req, res) => {
 
       logLine({ type: "session_created", session });
 
-      // Возвращаем JSON с client_secret и данными для фронта
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(session));
+      // ⚠️ В SDK 6.10.0 нет sendSDP — обмен SDP делается напрямую:
+      // Отправляем оффер в OpenAI и получаем answer
+      const answer = await client.post("/v1/realtime/sdp", {
+        body: {
+          session_id: session.id,
+          sdp: offerSDP,
+        },
+      });
+
+      logLine({ type: "outgoing_sdp_answer", length: answer.sdp.length });
+
+      // Возвращаем чистый SDP‑answer
+      res.writeHead(200, { "Content-Type": "application/sdp" });
+      res.end(answer.sdp);
     } catch (err) {
       console.error("❌ REALTIME ERROR:", err);
       logLine({ type: "error", error: String(err?.stack || err) });
