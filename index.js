@@ -3,9 +3,6 @@ const http = require("http");
 const dotenv = require("dotenv");
 dotenv.config();
 
-const OpenAI = require("openai");
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 const PORT = process.env.PORT || 8080;
 
 http.createServer(async (req, res) => {
@@ -19,21 +16,31 @@ http.createServer(async (req, res) => {
   }
 
   if (req.url !== "/offer" || req.method !== "POST") {
-    res.writeHead(404);
-    return res.end("Not Found");
+    res.writeHead(404, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ error: "Not Found" }));
   }
 
   try {
-    // создаём realtime‑сессию
-    const session = await client.post("/v1/realtime/sessions", {
-      body: {
+    const resp = await fetch("https://api.openai.com/v1/realtime/sessions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
         model: "gpt-4o-realtime-preview-latest",
         voice: "cedar",
         format: "webrtc",
-      },
+      }),
     });
 
-    // возвращаем только нужное
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`Session create failed: ${resp.status} ${text}`);
+    }
+
+    const session = await resp.json();
+
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
       client_secret: session.client_secret?.value,
