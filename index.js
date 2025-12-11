@@ -1,4 +1,3 @@
-// index.js — DC Realtime Signaling Proxy (SDK 6.10.0, REST approach)
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
@@ -19,8 +18,7 @@ function logLine(obj) {
 }
 
 http.createServer(async (req, res) => {
-  // ✅ CORS headers
-  res.setHeader("Access-Control-Allow-Origin", "*"); // или конкретный домен
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -41,7 +39,7 @@ http.createServer(async (req, res) => {
       const offerSDP = body;
       logLine({ type: "incoming_sdp_offer", length: offerSDP.length });
 
-      // Создаём realtime‑сессию через REST
+      // 1. Создаём realtime‑сессию
       const session = await client.post("/v1/realtime/sessions", {
         body: {
           model: "gpt-4o-realtime-preview-latest",
@@ -50,10 +48,7 @@ http.createServer(async (req, res) => {
         },
       });
 
-      logLine({ type: "session_created", session });
-
-      // ⚠️ В SDK 6.10.0 нет sendSDP — обмен SDP делается напрямую:
-      // Отправляем оффер в OpenAI и получаем answer
+      // 2. Отправляем оффер и получаем answer
       const answer = await client.post("/v1/realtime/sdp", {
         body: {
           session_id: session.id,
@@ -63,7 +58,7 @@ http.createServer(async (req, res) => {
 
       logLine({ type: "outgoing_sdp_answer", length: answer.sdp.length });
 
-      // Возвращаем чистый SDP‑answer
+      // 3. Возвращаем чистый SDP‑answer
       res.writeHead(200, { "Content-Type": "application/sdp" });
       res.end(answer.sdp);
     } catch (err) {
