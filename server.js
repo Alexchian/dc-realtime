@@ -1,4 +1,4 @@
-//  ! server.js — OpenAI SDK v6.x Realtime WebRTC Signaling Proxy
+//!!! server.js — Realtime Signaling Proxy for OpenAI SDK 4.47.0 (WORKING)
 
 const http = require("http");
 const dotenv = require("dotenv");
@@ -12,7 +12,8 @@ const client = new OpenAI({
 
 const PORT = process.env.PORT || 3001;
 
-http.createServer(async (req, res) => {
+const server = http.createServer(async (req, res) => {
+
   // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -23,7 +24,7 @@ http.createServer(async (req, res) => {
     return res.end();
   }
 
-  if (req.method !== "POST" || req.url !== "/offer") {
+  if (req.url !== "/offer" || req.method !== "POST") {
     res.writeHead(404);
     return res.end("Not Found");
   }
@@ -35,32 +36,27 @@ http.createServer(async (req, res) => {
     try {
       const offerSDP = body;
 
-      // === NEW SDK v6: Realtime session is created via beta.realtime
-      const session = await client.beta.realtime.sessions.create({
+      // ✔ WORKING REALTIME API for SDK 4.47.0
+      const session = await client.realtime.sessions.create({
         model: "gpt-4o-realtime-preview",
         voice: "cedar",
-        modalities: ["audio", "text"],
-        format: "webrtc",
+        format: "webrtc"
       });
 
-      // === NEW SDK v6: WebRTC SDP exchange
-      const answer = await client.beta.realtime.sessions.exchange(
-        session.id,
-        { sdp: offerSDP }
-      );
-
-      const answerSDP = answer.sdp;
+      const answerSDP = await session.sendSDP(offerSDP);
 
       res.writeHead(200, { "Content-Type": "application/sdp" });
       res.end(answerSDP);
 
     } catch (err) {
-      console.error("❌ REALTIME ERROR:", err);
+      console.error("❌ SERVER ERROR:", err);
       res.writeHead(500);
       res.end("ERROR");
     }
   });
 
-}).listen(PORT, () =>
-  console.log(`🚀 Realtime server running on port ${PORT}`)
+});
+
+server.listen(PORT, () =>
+  console.log(`🚀 Realtime Server running on port ${PORT}`)
 );
