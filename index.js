@@ -1,17 +1,13 @@
-// latest index.js — DC Realtime WebRTC Signaling Proxy (SDK 6.x)
 const http = require("http");
 const dotenv = require("dotenv");
 dotenv.config();
 
-const { RealtimeClient } = require("openai/realtime");
+const OpenAI = require("openai");
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const PORT = process.env.PORT || 8080;
 
 http.createServer(async (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
   if (req.method === "OPTIONS") {
     res.writeHead(204);
     return res.end();
@@ -24,28 +20,23 @@ http.createServer(async (req, res) => {
 
   let body = "";
   req.on("data", chunk => body += chunk);
-
   req.on("end", async () => {
     try {
       const offerSDP = body;
 
-      const client = new RealtimeClient({
-        apiKey: process.env.OPENAI_API_KEY,
+      // Создаём realtime‑сессию
+      const session = await client.post("/v1/realtime/sessions", {
+        body: {
+          model: "gpt-4o-realtime-preview-latest",
+          voice: "cedar",
+          format: "webrtc",
+        },
       });
 
-      const session = client.sessions.create({
-        model: "gpt-4o-realtime-preview-latest",
-        voice: "cedar",
-        format: "webrtc",
-      });
-
-      // В SDK 6.x обмен SDP может называться иначе.
-      // Если доступен метод sendSDP:
-      const answerSDP = await session.sendSDP(offerSDP);
-
-      res.writeHead(200, { "Content-Type": "application/sdp" });
-      res.end(answerSDP);
-
+      // В ответе будет client_secret и другие данные
+      // Здесь ты можешь вернуть их браузеру вместе с SDP‑answer
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(session));
     } catch (err) {
       console.error("❌ REALTIME ERROR:", err);
       res.writeHead(500);
