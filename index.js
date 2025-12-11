@@ -1,4 +1,4 @@
-// index.js — минимальный сервер для выдачи client_secret
+// index.js — сервер для выдачи client_secret
 const http = require("http");
 const dotenv = require("dotenv");
 dotenv.config();
@@ -29,8 +29,8 @@ http.createServer(async (req, res) => {
       },
       body: JSON.stringify({
         model: "gpt-4o-realtime-preview-latest",
-        voice: "cedar",
-        format: "webrtc",
+        voice: "cedar"
+        // ⚠️ format убран
       }),
     });
 
