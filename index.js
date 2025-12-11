@@ -1,14 +1,9 @@
-// server.js — DC Realtime WebRTC Signaling Proxy (SDK 4.47.0)
+// latest index.js — DC Realtime WebRTC Signaling Proxy (SDK 6.x)
 const http = require("http");
 const dotenv = require("dotenv");
-const OpenAI = require("openai");
-
 dotenv.config();
 
-// ✅ SDK 4.47.0 требует new
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const { RealtimeClient } = require("openai/realtime");
 
 const PORT = process.env.PORT || 8080;
 
@@ -34,12 +29,18 @@ http.createServer(async (req, res) => {
     try {
       const offerSDP = body;
 
-      const session = await client.realtime.sessions.create({
-        model: "gpt-4o-realtime-preview",
+      const client = new RealtimeClient({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      const session = client.sessions.create({
+        model: "gpt-4o-realtime-preview-latest",
         voice: "cedar",
         format: "webrtc",
       });
 
+      // В SDK 6.x обмен SDP может называться иначе.
+      // Если доступен метод sendSDP:
       const answerSDP = await session.sendSDP(offerSDP);
 
       res.writeHead(200, { "Content-Type": "application/sdp" });
