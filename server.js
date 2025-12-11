@@ -1,88 +1,61 @@
-// server.js — DC Realtime HTTP Signaling Proxy
+// server.js — OpenAI Realtime WebRTC Signaling Proxy (Stable API)
+
 const http = require("http");
 const dotenv = require("dotenv");
-const fetch = require("node-fetch");
+const OpenAI = require("openai");
 
 dotenv.config();
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-// Railway задаёт PORT автоматически, поэтому слушаем именно его
-const PORT = process.env.PORT;
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-if (!OPENAI_API_KEY) {
-  console.error("❌ Missing OPENAI_API_KEY in environment");
-  process.exit(1);
-}
+const PORT = process.env.PORT || 8080;
 
-const server = http.createServer(async (req, res) => {
-  // CORS заголовки
+http.createServer(async (req, res) => {
+
+  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
     res.writeHead(204);
-    res.end();
-    return;
+    return res.end();
   }
 
-  // Healthcheck endpoint
-  if (req.method === "GET" && req.url === "/health") {
-    res.writeHead(200, { "Content-Type": "text/plain" });
-    res.end("OK");
-    return;
+  if (req.url !== "/offer" || req.method !== "POST") {
+    res.writeHead(404);
+    return res.end("Not Found");
   }
 
-  // Offer endpoint
-  if (req.method === "POST" && req.url === "/offer") {
-    let body = "";
-    req.on("data", (chunk) => {
-      body += chunk;
-    });
+  let body = "";
+  req.on("data", chunk => body += chunk);
 
-    req.on("end", async () => {
-      try {
-        console.log("📨 Received SDP offer, length:", body.length);
+  req.on("end", async () => {
+    try {
+      const offer = body;
 
-        const oaiRes = await fetch(
-          "https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${OPENAI_API_KEY}`,
-              "Content-Type": "application/sdp",
-            },
-            body,
-          }
-        );
+      // Create realtime WebRTC session
+      const session = await client.realtime.sessions.create({
+        model: "gpt-4o-realtime-preview",
+        voice: "cedar",
+        format: "webrtc",
+      });
 
-        if (!oaiRes.ok) {
-          const text = await oaiRes.text();
-          console.error("❌ OpenAI error", oaiRes.status, text);
-          res.writeHead(502, { "Content-Type": "text/plain" });
-          res.end("OpenAI error: " + text);
-          return;
-        }
+      // Exchange SDP
+      const answer = await session.sendSDP(offer);
 
-        const answerSdp = await oaiRes.text();
-        console.log("✅ Got SDP answer, length:", answerSdp.length);
+      res.writeHead(200, { "Content-Type": "application/sdp" });
+      res.end(answer);
 
-        res.writeHead(200, { "Content-Type": "application/sdp" });
-        res.end(answerSdp);
-      } catch (err) {
-        console.error("❌ Server error:", err);
-        res.writeHead(500, { "Content-Type": "text/plain" });
-        res.end("Server error");
-      }
-    });
-    return;
-  }
+    } catch (err) {
+      console.error("❌ REALTIME ERROR:", err);
+      res.writeHead(500);
+      res.end("ERROR");
+    }
+  });
 
-  // Fallback
-  res.writeHead(404, { "Content-Type": "text/plain" });
-  res.end("Not found");
-});
-
-server.listen(PORT, () => {
-  console.log(`🚀 DC Realtime Signaling Server listening on http://localhost:${PORT}`);
-});
+}).listen(PORT, () =>
+  console.log("🚀 Realtime Server running on port", PORT)
+);
