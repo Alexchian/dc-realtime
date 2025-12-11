@@ -1,4 +1,4 @@
-//!!! server.js — Realtime Signaling Proxy for OpenAI SDK 4.47.0 (WORKING)
+//+++ server.js — Stable Realtime Signaling Proxy for OpenAI SDK 4.47.0
 
 const http = require("http");
 const dotenv = require("dotenv");
@@ -12,7 +12,7 @@ const client = new OpenAI({
 
 const PORT = process.env.PORT || 3001;
 
-const server = http.createServer(async (req, res) => {
+http.createServer(async (req, res) => {
 
   // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -24,7 +24,7 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
-  if (req.url !== "/offer" || req.method !== "POST") {
+  if (req.method !== "POST" || req.url !== "/offer") {
     res.writeHead(404);
     return res.end("Not Found");
   }
@@ -36,13 +36,14 @@ const server = http.createServer(async (req, res) => {
     try {
       const offerSDP = body;
 
-      // ✔ WORKING REALTIME API for SDK 4.47.0
+      // ---- Stable realtime API (SDK 4.47.0)
       const session = await client.realtime.sessions.create({
         model: "gpt-4o-realtime-preview",
         voice: "cedar",
-        format: "webrtc"
+        format: "webrtc",
       });
 
+      // ---- Exchange WebRTC SDP ----
       const answerSDP = await session.sendSDP(offerSDP);
 
       res.writeHead(200, { "Content-Type": "application/sdp" });
@@ -55,8 +56,6 @@ const server = http.createServer(async (req, res) => {
     }
   });
 
-});
-
-server.listen(PORT, () =>
+}).listen(PORT, () =>
   console.log(`🚀 Realtime Server running on port ${PORT}`)
 );
