@@ -1,4 +1,4 @@
-// index.js — Realtime Voice WebSocket Signaling Server
+// index.js — DC Realtime Voice WS Server (рабочий)
 const http = require("http");
 const dotenv = require("dotenv");
 dotenv.config();
@@ -15,13 +15,14 @@ http.createServer(async (req, res) => {
     return res.end();
   }
 
+  // только POST /session
   if (req.url !== "/session" || req.method !== "POST") {
     res.writeHead(404, { "Content-Type": "application/json" });
     return res.end(JSON.stringify({ error: "Not Found" }));
   }
 
   try {
-    // Create realtime session
+    // создаём realtime-сессию
     const resp = await fetch("https://api.openai.com/v1/realtime/sessions", {
       method: "POST",
       headers: {
@@ -30,7 +31,7 @@ http.createServer(async (req, res) => {
       },
       body: JSON.stringify({
         model: "gpt-4o-realtime-preview-latest",
-        voice: "alloy",      // мужской → cedar можно тоже
+        voice: "alloy",
         modalities: ["audio", "text"]
       })
     });
@@ -41,19 +42,17 @@ http.createServer(async (req, res) => {
       throw new Error(JSON.stringify(data));
     }
 
-    // return client_secret to browser
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
-      client_secret: data.client_secret?.value,
+      client_secret: data.client_secret.value,
       session_id: data.id
     }));
-
   } catch (err) {
-    console.error("❌ ERROR CREATING SESSION:", err);
+    console.error("❌ SESSION ERROR:", err);
     res.writeHead(500, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: String(err) }));
   }
 
 }).listen(PORT, () =>
-  console.log(`🚀 Realtime Voice server running on port ${PORT}`)
+  console.log(`🚀 WS Voice Server running on ${PORT}`)
 );
