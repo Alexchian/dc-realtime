@@ -1,13 +1,16 @@
-// index.js — сервер для выдачи client_secret
 const http = require("http");
 const dotenv = require("dotenv");
+const OpenAI = require("openai");
+
 dotenv.config();
+
+const client = OpenAI(process.env.OPENAI_API_KEY);
 
 const PORT = process.env.PORT || 8080;
 
 http.createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
@@ -16,41 +19,34 @@ http.createServer(async (req, res) => {
   }
 
   if (req.url !== "/offer" || req.method !== "POST") {
-    res.writeHead(404, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify({ error: "Not Found" }));
+    res.writeHead(404);
+    return res.end("Not Found");
   }
 
-  try {
-    const resp = await fetch("https://api.openai.com/v1/realtime/sessions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-realtime-preview-latest",
-        voice: "cedar"
-        // ⚠️ format убран
-      }),
-    });
+  let body = "";
+  req.on("data", chunk => (body += chunk));
 
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error(`Session create failed: ${resp.status} ${text}`);
+  req.on("end", async () => {
+    try {
+      const offerSDP = body;
+
+      const session = await client.realtime.sessions.create({
+        model: "gpt-4o-realtime-preview",
+        voice: "cedar",
+        format: "webrtc",
+      });
+
+      const answer = await session.sendSDP(offerSDP);
+
+      res.writeHead(200, { "Content-Type": "application/sdp" });
+      res.end(answer);
+
+    } catch (err) {
+      console.error("❌ REALTIME ERROR:", err);
+      res.writeHead(500);
+      res.end("ERROR");
     }
-
-    const session = await resp.json();
-
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
-      client_secret: session.client_secret?.value,
-      id: session.id,
-    }));
-  } catch (err) {
-    console.error("❌ REALTIME ERROR:", err);
-    res.writeHead(500, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: String(err) }));
-  }
+  });
 }).listen(PORT, () =>
-  console.log(`🚀 Server listening on port ${PORT}`)
+  console.log(`🚀 WebRTC Signaling Server running on port ${PORT}`)
 );
