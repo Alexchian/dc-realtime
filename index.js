@@ -1,58 +1,88 @@
-// index.js — DC Realtime Voice WS Server (рабочий)
+// server.js — DC Realtime HTTP Signaling Proxy
 const http = require("http");
 const dotenv = require("dotenv");
+const fetch = require("node-fetch");
+
 dotenv.config();
 
-const PORT = process.env.PORT || 8080;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// Railway задаёт PORT автоматически, поэтому слушаем именно его
+const PORT = process.env.PORT;
 
-http.createServer(async (req, res) => {
+if (!OPENAI_API_KEY) {
+  console.error("❌ Missing OPENAI_API_KEY in environment");
+  process.exit(1);
+}
+
+const server = http.createServer(async (req, res) => {
+  // CORS заголовки
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
     res.writeHead(204);
-    return res.end();
+    res.end();
+    return;
   }
 
-  // только POST /session
-  if (req.url !== "/session" || req.method !== "POST") {
-    res.writeHead(404, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify({ error: "Not Found" }));
+  // Healthcheck endpoint
+  if (req.method === "GET" && req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("OK");
+    return;
   }
 
-  try {
-    // создаём realtime-сессию
-    const resp = await fetch("https://api.openai.com/v1/realtime/sessions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-realtime-preview-latest",
-        voice: "alloy",
-        modalities: ["audio", "text"]
-      })
+  // Offer endpoint
+  if (req.method === "POST" && req.url === "/offer") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
     });
 
-    const data = await resp.json();
+    req.on("end", async () => {
+      try {
+        console.log("📨 Received SDP offer, length:", body.length);
 
-    if (!resp.ok) {
-      throw new Error(JSON.stringify(data));
-    }
+        const oaiRes = await fetch(
+          "https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${OPENAI_API_KEY}`,
+              "Content-Type": "application/sdp",
+            },
+            body,
+          }
+        );
 
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
-      client_secret: data.client_secret.value,
-      session_id: data.id
-    }));
-  } catch (err) {
-    console.error("❌ SESSION ERROR:", err);
-    res.writeHead(500, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: String(err) }));
+        if (!oaiRes.ok) {
+          const text = await oaiRes.text();
+          console.error("❌ OpenAI error", oaiRes.status, text);
+          res.writeHead(502, { "Content-Type": "text/plain" });
+          res.end("OpenAI error: " + text);
+          return;
+        }
+
+        const answerSdp = await oaiRes.text();
+        console.log("✅ Got SDP answer, length:", answerSdp.length);
+
+        res.writeHead(200, { "Content-Type": "application/sdp" });
+        res.end(answerSdp);
+      } catch (err) {
+        console.error("❌ Server error:", err);
+        res.writeHead(500, { "Content-Type": "text/plain" });
+        res.end("Server error");
+      }
+    });
+    return;
   }
 
-}).listen(PORT, () =>
-  console.log(`🚀 WS Voice Server running on ${PORT}`)
-);
+  // Fallback
+  res.writeHead(404, { "Content-Type": "text/plain" });
+  res.end("Not found");
+});
+
+server.listen(PORT, () => {
+  console.log(`🚀 DC Realtime Signaling Server listening on http://localhost:${PORT}`);
+});
